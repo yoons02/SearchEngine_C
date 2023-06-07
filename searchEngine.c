@@ -96,7 +96,7 @@ void search_word(char* key, int d) {
 
     heapSort(search_results, num_results);
 
-    for (int j = num_results; j > 0; j--) {
+    for (int j = num_results-1; j >= 0; j--) {
         printf("\n");
         printf("<%s> %s : %d\n", search_results[j].document_name, search_results[j].data, search_results[j].count);
         print_doc(search_results[j].document_name, &search_results[j].data);
