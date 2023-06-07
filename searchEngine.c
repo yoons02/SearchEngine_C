@@ -4,8 +4,6 @@
 #include <ctype.h>
 #include "searchEngine.h"
 
-#pragma warning(disable:4996)
-#define _CRT_SECURE_NO_WARNINGS
 
 int main()
 {
@@ -36,7 +34,7 @@ int main()
       case 'S':
          printf("\n Search Word: ");
          scanf("%s", key);
-		 getchar();
+		   getchar();
          search_word(key, dcount);
          break;
       case 'I':
@@ -52,34 +50,39 @@ int main()
    }
 }
 
+// folding 방식
+int transform(char *key)
+{ // A-Z(0-25) a-z(26-51)
+    int num = 0;
+    for (int i = 0; i < strlen(key); i++)
+    {
+        if (key[i] >= 'A' && key[i] <= 'Z')
+            num = num + key[i] - 'A'; // A의 값이 0
+        else if (key[i] >= 'a' && key[i] <= 'z')
+            num = num + key[i] - 'a' + 26; // a의 값이 26
+    }
+    return num;
+}
 
-int transform(char* key) {
-   int n = 0;
-   while (key == NULL)
-      n += *key++;
-   return n;
-}//folding 방식으로 key의 각 character 값을 더해 숫자로 변환하는 함수
+int hash(char* key) {
+   return transform(key) % 5000;
+} // folding값을 30으로 나눈 나머지를 해시함수 값으로 이용
 
 
-void search_word(char* key, int d)
-{
+void search_word(char* key, int d) {
     int i;
-    int max_count = 0; // 최대 출현 횟수 변수
+    int max_count = 0;
+    SearchResult search_results[MAX_NUM_DOC];
+    int num_results = 0;
 
-    // 검색 결과를 저장할 배열
-    HeapNode search_results[MAX_NUM_DOC];
-    int num_results = 0; // 검색 결과 개수
-
-    // 검색 결과를 search_results 배열에 저장
     for (i = 0; i < d; i++) {
         treePtr p = hash_table[i][hash(key)];
         treePtr result = search_bst(key, p);
 
-        if (result != NULL) { // 검색어가 발견됬다면
-            search_results[num_results].count = i;
+        if (result != NULL) {
+            search_results[num_results].count = result->count;
             strcpy(search_results[num_results].document_name, document_name[i]);
             strcpy(search_results[num_results].data, result->data);
-            search_results[num_results].count = result->count;
 
             if (result->count > max_count) {
                 max_count = result->count;
@@ -89,32 +92,91 @@ void search_word(char* key, int d)
         }
     }
 
-	printf("Total Documents : %d\n", num_results);
+    printf("Total Documents: %d\n", num_results);
 
-    // 최대 출현 횟수가 높은 순서대로 결과를 출력
-    for (int count = max_count; count > 0; count--) {
-        for (int j = 0; j < num_results; j++) {
-            if (search_results[j].count == count) {
-				printf("\n");
-                printf("<%s> %s : %d\n", search_results[j].document_name, search_results[j].data, search_results[j].count);
-                print_doc(search_results[j].document_name, &search_results[j].data);
-            }
-        }
+    heapSort(search_results, num_results);
+
+    for (int j = num_results; j > 0; j--) {
+        printf("\n");
+        printf("<%s> %s : %d\n", search_results[j].document_name, search_results[j].data, search_results[j].count);
+        print_doc(search_results[j].document_name, &search_results[j].data);
     }
 
-    printf("\nTotal number of comparison = %d\n", num_search);
-    num_search = 0;
+    printf("\nTotal number of comparison = %d\n", num_comparison_at_search);
+    num_comparison_at_search = 0;
 }
 
+treePtr search_bst(char* key, treePtr p)
+{
+   treePtr ptr = p;
+   while (ptr != NULL) {
+      num_comparison_at_search++;//키와 노드의 데이터값 비교가 일어나므로 검색 비교연산의 횟수를 증가시킨다.
+      if (strcmp(key, ptr->data) == 0)
+         return ptr;//키와 노드의 데이터 값이 같다면 이 노드를 반환.
+      if (strcmp(key, ptr->data) < 0)
+         ptr = ptr->left;
+      else
+         ptr = ptr->right;//다르다면 원하는 노드를 찾아 내려감.
+   }
+   return NULL;
+}//이진탐색트리를 검색하여 원하는 노드를 반환하는 함수. 찾는 데이터가 없다면 NULL을 반환.
+
+
+void bulid_hash_table(char* fname, int d)
+{
+   char line[256];
+   char* token;
+   FILE* fp;
+   fp = fopen(fname, "r"); // 해당 파일을 읽는다
+   if (fp == NULL) // 아무것도 안들어있으면
+   {
+      printf("There is no file.\n");
+      return;
+   }
+   else { // 내용이 있다면
+      while (fgets(line, 256, fp) != NULL) // 파일을 끝날때까지 한 줄씩 읽는다.
+      {
+         token = strtok(line, delimiter); // 한 줄의 모든 토큰을 분리해낸다.
+         while (token != NULL) // 토큰이 존재하는동안
+         {
+            insert_hash_table(token, d); // token을 hash table에 insert
+            token = strtok(NULL, delimiter); // 다음 token으로 update
+         }//이 토큰을 해시테이블에 삽입하고, 토큰을 또 나누는 것을 파일이 끝날때까지 반복한다.
+      }
+      printf("<%s> File indexig is completed.\n", fname);//파일 색인이 끝났음을 표시.
+   }
+   fclose(fp);//파일 입출력 스트림을 닫는다.
+}//파일을 색인하여 해시테이블을 만드는 함수이다.
+
+
+void insert_hash_table(char* key, int d)
+{
+   treePtr temp = (treePtr)malloc(sizeof(node));
+   strcpy(temp->data, key);
+   temp->count = 1;
+   temp->left = temp->right = NULL; // 트리의 노드를 동적 할당하고, 내용을 초기화한다.
+
+   treePtr q = hash_table[d][hash(key)];
+   if (q == NULL) // hash_table에 처음 삽입되는 단어라면
+   {
+      total_comparison_at_indexed++; // 색인시에 일어나는 비교 연산의 수를 증가시킨다.
+      indexed_word++; // 색인 된 단어의 수를 하나 증가시킨다
+      hash_table[d][hash(key)] = temp; // temp를 hash table에 삽입한다
+   }
+   else{ // 이미 안에 해당 단어가 있다면
+      make_bst(key, q, temp); // bst를 형성한다
+   }
+   //만약 hash_table[d][hash(key)]에 노드가 없다면 그곳에 노드 삽입. 이미 노드 존재한다면 이진탐색트리를 만든다.
+}//해시 테이블에 자료를 삽입하는 함수
 
 void make_bst(char* key, treePtr p, treePtr temp)
 {
    indexed_word++;
    treePtr a;
    a = p;
-   int h = 0;
+
    while (a) {
-      num_comparison++;//색인 비교연산 수 증가
+      total_comparison_at_indexed++; // 색인 비교연산 수 증가
       if (strcmp(key, a->data) == 0)
       {
          a->count++;
@@ -136,88 +198,12 @@ void make_bst(char* key, treePtr p, treePtr temp)
 }//해시테이블에 이진탐색트리를 연결하는 함수
 
 
-treePtr search_bst(char* key, treePtr p)
-{
-   treePtr ptr = p;
-   while (ptr != NULL) {
-      num_search++;//키와 노드의 데이터값 비교가 일어나므로 검색 비교연산의 횟수를 증가시킨다.
-      if (strcmp(key, ptr->data) == 0)
-         return ptr;//키와 노드의 데이터 값이 같다면 이 노드를 반환.
-      if (strcmp(key, ptr->data) < 0)
-         ptr = ptr->left;
-      else
-         ptr = ptr->right;//다르다면 원하는 노드를 찾아 내려감.
-   }
-   return NULL;
-}//이진탐색트리를 검색하여 원하는 노드를 반환하는 함수. 찾는 데이터가 없다면 NULL을 반환.
-
-
-void bulid_hash_table(char* fname, int d)
-{
-   char line[1200];
-   char* token;
-   FILE* fp;
-   fp = fopen(fname, "r");//파일 입출력 스트림을 읽기모드로 연다.
-   if (fp == NULL)
-   {
-      printf("There is no file.\n");
-      return;
-   }//파일이 존재하지 않는다면 파일을 읽어올 수 없다.
-   else {
-      while (fgets(line, 256, fp) != NULL)//파일을 끝날때까지 한줄씩 읽는다.
-      {
-         token = strtok(line, delimiter);//토큰을 분리해낸다.
-         while (token != NULL)
-         {
-            insert_hash_table(token, d);
-            token = strtok(NULL, delimiter);
-         }//이 토큰을 해시테이블에 삽입하고, 토큰을 또 나누는 것을 파일이 끝날때까지 반복한다.
-      }
-      printf("<%s> File indexig is completed.\n", fname);//파일 색인이 끝났음을 표시.
-   }
-   fclose(fp);//파일 입출력 스트림을 닫는다.
-}//파일을 색인하여 해시테이블을 만드는 함수이다.
-
-
-void insert_hash_table(char* key, int d)
-{
-   treePtr temp = (treePtr)malloc(sizeof(node));
-   strcpy(temp->data, key);
-   temp->count = 1;
-   temp->left = temp->right = NULL;//트리의 노드를 동적 할당하고, 내용을 초기화한다.
-   treePtr q = hash_table[d][hash(key)];
-   if (q == NULL)
-   {
-      num_comparison++;//색인시에 일어나는 비교 연산의 수를 증가시킨다.
-      indexed_word++;
-      hash_table[d][hash(key)] = temp;
-   }
-   else
-      make_bst(key, q, temp);
-   //만약 hash_table[d][hash(key)]에 노드가 없다면 그곳에 노드 삽입. 이미 노드 존재한다면 이진탐색트리를 만든다.
-}//해시 테이블에 자료를 삽입하는 함수
-
-
-int hash(char* key) {
-   return transform(key) % 30;
-}//folding값을 30으로 나눈 나머지를 해시함수 값으로 이용
-
-
 void print_idx_result(int i)
 {
-   printf("\nTotal number of documents = %d \n", i);
-   printf("Total number of indexed words = %d \n", indexed_word);
-   printf("Total number of comparison = %d\n", num_comparison);
+   printf("\nTotal number of documents = %d \n", i); // 파일 갯수
+   printf("Total number of indexed words = %d \n", indexed_word); // 색인된 단어 수
+   printf("Total number of comparison = %d\n", total_comparison_at_indexed); // 색인 시 비교 횟수
 }//색인 결과를 프린트한다.
-
-
-void print_result(treePtr p, int i)
-{
-
-   if (p) {
-      printf("\n<%s> %s : %d", document_name[i], p->data, p->count);
-   }
-}//검색 후 결과를 프린트함.
 
 
 void print_doc(char* fname, treePtr p)
@@ -248,3 +234,36 @@ void print_doc(char* fname, treePtr p)
    printf("\n");
    fclose(fp);//파일 입출력 스트림을 닫는다.
 }//검색 결과가 있는 문서의 위치를 프린트하는 함수
+
+void swap(SearchResult* a, SearchResult* b) {
+    SearchResult temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void heapify(SearchResult arr[], int n, int i) { // heap 유지
+    int largest = i;
+    int left = 2 * i + 1;
+    int right = 2 * i + 2;
+
+    if (left < n && arr[left].count > arr[largest].count)
+        largest = left;
+
+    if (right < n && arr[right].count > arr[largest].count)
+        largest = right;
+
+    if (largest != i) {
+        swap(&arr[i], &arr[largest]);
+        heapify(arr, n, largest); // 재귀적 호출
+    }
+}
+
+void heapSort(SearchResult arr[], int n) {
+    for (int i = n / 2 - 1; i >= 0; i--)
+        heapify(arr, n, i);
+
+    for (int i = n - 1; i >= 0; i--) {
+        swap(&arr[0], &arr[i]);
+        heapify(arr, i, 0);
+    }
+}

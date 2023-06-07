@@ -4,68 +4,38 @@
 #define delimiter " \"\n\t`'…?!.,:()"
 #define MAX_RESULTS 100
 
-typedef struct treeNode *treePtr;
-typedef struct treeNode {
-	char data[WORD_LENGTH];
-	int  count;
-	treePtr left;
+typedef struct treeNode *treePtr; // treeNode형 포인터
+typedef struct treeNode { // treenode 구조체
+	char data[WORD_LENGTH]; // 어떤 단어에 대한 구조체?
+	int  count; // 빈도 수, 얼마나 많이 나왔나
+	treePtr left; 
 	treePtr right;
 }node;
 
 typedef struct {
-    int doc_index;
     char document_name[NAME_LENGTH];
     char data[WORD_LENGTH];
     int count;
-} HeapNode;
+} SearchResult;
 
-treePtr hash_table[MAX_NUM_DOC][5000];
-int num_comparison = 0;
-int num_search = 0;
-char document_name[MAX_NUM_DOC][NAME_LENGTH];
-int indexed_word = 0;
 
-void readFilesInFolder(const char *folderPath, int *dcount);
-int transform(char *key);
+treePtr hash_table[MAX_NUM_DOC][5000]; // treePtr형 hash_table
+int total_comparison_at_indexed = 0; // 총 비교 횟수
+int num_comparison_at_search = 0; // 특정 단어 검색 시 비교 횟수
+char document_name[MAX_NUM_DOC][NAME_LENGTH]; // 문서 이름
+int indexed_word = 0; // 인식된 단어 개수
+
+int hash(char*key); // hash 함수
+int transform(char *key); // hash fording 방식
+
 void search_word(char *key, int d);
 void make_bst(char *key, treePtr p, treePtr temp);
 treePtr search_bst(char*key, treePtr p);
 void bulid_hash_table(char*fname, int d);
-void insert_hash_table(char*key, int d);
-int hash(char*key);
-void print_idx_result(int i);
-void print_result(treePtr p, int i);
-void print_doc(char *fname, treePtr p);
+void insert_hash_table(char*key, int d); 
+void print_idx_result(int i); // 파일 수, 색인 된 단어 횟수, 색인 시 비교횟수 출력
+void print_doc(char *fname, treePtr p); // 특정 단어가 포함된 문장 출력
 
-void heapify(HeapNode arr[], int n, int i) {
-    int largest = i;
-    int l = 2 * i + 1;
-    int r = 2 * i + 2;
-
-    if (l < n && arr[l].count > arr[largest].count)
-        largest = l;
-
-    if (r < n && arr[r].count > arr[largest].count)
-        largest = r;
-
-    if (largest != i) {
-        HeapNode temp = arr[i];
-        arr[i] = arr[largest];
-        arr[largest] = temp;
-
-        heapify(arr, n, largest);
-    }
-}
-
-void heap_sort(HeapNode arr[], int n) {
-    for (int i = n / 2 - 1; i >= 0; i--)
-        heapify(arr, n, i);
-
-    for (int i = n - 1; i > 0; i--) {
-        HeapNode temp = arr[0];
-        arr[0] = arr[i];
-        arr[i] = temp;
-
-        heapify(arr, i, 0);
-    }
-}
+void heapSort(SearchResult arr[], int n);
+void heapify(SearchResult arr[], int n, int i);
+void swap(SearchResult* a, SearchResult* b);

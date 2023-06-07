@@ -37,6 +37,8 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp.errorSquiggles": "enabled",
   "files.associations": {
-    "searchengine.h": "c"
+    "searchengine.h": "c",
+    "array": "c",
+    "vector": "c"
   }
 }
